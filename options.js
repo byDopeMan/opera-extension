@@ -281,6 +281,84 @@ function loadSavedDesign() {
   });
 }
 
+// ── Design exportieren ──────────────────────────────────────────────
+document.getElementById("export-btn").addEventListener("click", () => {
+  const s    = getSettings();
+  const code = JSON.stringify({
+    color: s.color, bgAlpha: s.bgAlpha, borderAlpha: s.borderAlpha,
+    fontSize: s.fontSize, fontWeight: s.fontWeight, lineHeight: s.lineHeight,
+    px: s.px, py: s.py, radius: s.radius, ml: s.ml, gap: s.gap, bw: s.bw,
+    emoji: s.emoji,
+  });
+  const ta = document.getElementById("share-code");
+  ta.value = code;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.getElementById("export-btn");
+    btn.textContent = "✓ Kopiert!";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "Exportieren"; btn.classList.remove("copied"); }, 1800);
+  });
+});
+
+// ── Design importieren ──────────────────────────────────────────────
+document.getElementById("import-btn").addEventListener("click", () => {
+  const raw = document.getElementById("share-code").value.trim();
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    const required = ["color","bgAlpha","borderAlpha","fontSize","fontWeight",
+                      "lineHeight","px","py","radius","ml","gap","bw"];
+    if (!required.every(k => k in d)) throw new Error("Fehlende Felder");
+
+    document.getElementById("c-color").value              = d.color;
+    document.getElementById("c-bg-alpha").value           = d.bgAlpha;
+    document.getElementById("c-bg-alpha-val").textContent = d.bgAlpha + "%";
+    document.getElementById("c-border-alpha").value       = d.borderAlpha;
+    document.getElementById("c-border-alpha-val").textContent = d.borderAlpha + "%";
+    document.getElementById("c-fontsize").value           = d.fontSize;
+    document.getElementById("c-fontsize-val").textContent = d.fontSize;
+    document.getElementById("c-fontweight").value         = d.fontWeight;
+    document.getElementById("c-lineheight").value         = d.lineHeight;
+    document.getElementById("c-lineheight-val").textContent = d.lineHeight;
+    document.getElementById("c-px").value                 = d.px;
+    document.getElementById("c-px-val").textContent       = d.px + "px";
+    document.getElementById("c-py").value                 = d.py;
+    document.getElementById("c-py-val").textContent       = d.py + "px";
+    document.getElementById("c-radius").value             = d.radius;
+    document.getElementById("c-radius-val").textContent   = d.radius + "px";
+    document.getElementById("c-ml").value                 = d.ml;
+    document.getElementById("c-ml-val").textContent       = d.ml + "px";
+    document.getElementById("c-gap").value                = d.gap;
+    document.getElementById("c-gap-val").textContent      = d.gap + "px";
+    document.getElementById("c-bw").value                 = d.bw;
+    document.getElementById("c-bw-val").textContent       = d.bw + "px";
+    if ("emoji" in d) document.getElementById("c-emoji").value = d.emoji;
+
+    buildCards();
+    updateCSSOutput(getSettings());
+
+    const btn = document.getElementById("import-btn");
+    btn.textContent = "✓ Importiert!";
+    btn.style.background = "#2e7d32";
+    btn.style.color = "#fff";
+    setTimeout(() => {
+      btn.textContent = "Importieren";
+      btn.style.background = "";
+      btn.style.color = "";
+    }, 1800);
+  } catch (_) {
+    const btn = document.getElementById("import-btn");
+    btn.textContent = "✗ Ungültiger Code";
+    btn.style.background = "#7d2e2e";
+    btn.style.color = "#fff";
+    setTimeout(() => {
+      btn.textContent = "Importieren";
+      btn.style.background = "";
+      btn.style.color = "";
+    }, 2000);
+  }
+});
+
 // Sofort mit Standardwerten rendern, dann Storage-Werte nachladen
 buildCards();
 updateCSSOutput(getSettings());

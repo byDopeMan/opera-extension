@@ -1,8 +1,5 @@
 /* =====================================================================
-   YouTube – Exaktes Upload-Datum
-   Holt für jedes Video das echte Hochladedatum direkt von der
-   Video-Seite (uploadDate aus den Metadaten) und blendet es als Badge ein.
-   Einstellungen werden aus chrome.storage.sync geladen.
+   YouTube – Exaktes Upload-Datum + Dislikes + Exakte Aufrufe
    ===================================================================== */
 
 (() => {
@@ -10,10 +7,12 @@
 
   /* ---------- Standard-Einstellungen -------------------------------- */
   const DEFAULTS = {
-    enabled:  true,
-    format:   "DD.MM.YYYY",
-    mode:     "append",
-    showTime: false,
+    enabled:        true,
+    format:         "DD.MM.YYYY",
+    mode:           "append",
+    showTime:       false,
+    showDislikes:   true,
+    showExactViews: true,
     badgeDesign: {
       color: "#43c463", bgAlpha: 0, borderAlpha: 35,
       fontSize: 0.85, fontWeight: "300", lineHeight: 1.35,
@@ -26,15 +25,12 @@
 
   /* ---------- Renderer-Selektoren ----------------------------------- */
   const RENDERERS = [
-    "ytd-video-renderer",           // Suchergebnisse
-    "ytd-rich-item-renderer",       // Startseite / Kanal-Grid (neu)
-    "ytd-rich-grid-media",          // Startseite Medien-Block
-    "ytd-grid-video-renderer",      // ältere Grids / Kanal-Tab
-    "ytd-compact-video-renderer",   // Sidebar
-    "ytd-playlist-video-renderer",  // Playlists
+    "ytd-video-renderer",
+    "ytd-rich-item-renderer",
+    "ytd-grid-video-renderer",
+    "ytd-compact-video-renderer",
+    "ytd-playlist-video-renderer",
     "ytd-playlist-panel-video-renderer",
-    "ytd-movie-renderer",           // Filme
-    "ytd-shelf-renderer",           // Empfehlungs-Regale
   ].join(", ");
 
   /* ---------- Helfer ------------------------------------------------ */
@@ -49,15 +45,18 @@
     try {
       const u = new URL(href, location.origin);
       if (u.pathname === "/watch") return u.searchParams.get("v");
-      let m = u.pathname.match(/\/shorts\/([\w-]{6,})/);
-      if (m) return m[1];
-      m = u.pathname.match(/\/embed\/([\w-]{6,})/);
-      if (m) return m[1];
+      const m1 = u.pathname.match(/\/shorts\/([\w-]{6,})/);
+      if (m1) return m1[1];
+      const m2 = u.pathname.match(/\/embed\/([\w-]{6,})/);
+      if (m2) return m2[1];
     } catch (_) {}
     return null;
   }
 
-  const MONTHS_DE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+  /* ---------- Formatierung ----------------------------------------- */
+
+  const MONTHS_DE = ["Januar","Februar","März","April","Mai","Juni",
+                     "Juli","August","September","Oktober","November","Dezember"];
 
   function formatDate(iso) {
     const d = new Date(iso);
@@ -66,30 +65,34 @@
     const mm   = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     let s;
-    if (CONFIG.format === "YYYY-MM-DD")      s = `${yyyy}-${mm}-${dd}`;
-    else if (CONFIG.format === "MM/DD/YYYY")  s = `${mm}/${dd}/${yyyy}`;
-    else if (CONFIG.format === "D. Mon YYYY") s = `${d.getDate()}. ${MONTHS_DE[d.getMonth()]} ${yyyy}`;
-    else                                      s = `${dd}.${mm}.${yyyy}`;
-    if (CONFIG.showTime) {
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mi = String(d.getMinutes()).padStart(2, "0");
-      s += ` ${hh}:${mi}`;
-    }
+    if      (CONFIG.format === "YYYY-MM-DD")      s = `${yyyy}-${mm}-${dd}`;
+    else if (CONFIG.format === "MM/DD/YYYY")       s = `${mm}/${dd}/${yyyy}`;
+    else if (CONFIG.format === "D. Mon YYYY")      s = `${d.getDate()}. ${MONTHS_DE[d.getMonth()]} ${yyyy}`;
+    else                                           s = `${dd}.${mm}.${yyyy}`;
+    if (CONFIG.showTime)
+      s += ` ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
     const emoji = CONFIG.badgeDesign?.emoji ?? "📅";
     return (emoji ? emoji + " " : "") + s;
+  }
+
+  function formatCount(n) {
+    return n.toLocaleString("de-DE");
   }
 
   /* ---------- Cache ------------------------------------------------- */
 
   const mem = new Map();
-  function cacheGet(id) {
-    if (mem.has(id)) return mem.get(id);
-    try { const v = sessionStorage.getItem("xdate:" + id); if (v !== null) { mem.set(id, v); return v; } } catch (_) {}
+  function cacheGet(key) {
+    if (mem.has(key)) return mem.get(key);
+    try {
+      const v = sessionStorage.getItem(key);
+      if (v !== null) { mem.set(key, v); return v; }
+    } catch (_) {}
     return undefined;
   }
-  function cacheSet(id, v) {
-    mem.set(id, v);
-    try { sessionStorage.setItem("xdate:" + id, v); } catch (_) {}
+  function cacheSet(key, v) {
+    mem.set(key, v);
+    try { sessionStorage.setItem(key, v); } catch (_) {}
   }
 
   /* ---------- Warteschlange ----------------------------------------- */
@@ -105,62 +108,132 @@
     }
   }
 
-  /* ---------- Datum von Video-Seite holen --------------------------- */
+  /* ---------- Video-Daten von Seite holen (Datum + Aufrufe) --------- */
 
-  async function fetchUploadDate(id) {
-    const res = await fetch("https://www.youtube.com/watch?v=" + id, { credentials: "include" });
+  async function fetchVideoData(id) {
+    const res  = await fetch("https://www.youtube.com/watch?v=" + id, { credentials: "include" });
     const html = await res.text();
-    let m = html.match(/"uploadDate":"([^"]+)"/);
-    if (m) return m[1];
-    m = html.match(/"publishDate":"([^"]+)"/);
-    if (m) return m[1];
-    return null;
+    const dateM  = html.match(/"uploadDate":"([^"]+)"/) || html.match(/"publishDate":"([^"]+)"/);
+    const viewsM = html.match(/"viewCount":"(\d+)"/);
+    return {
+      date:  dateM  ? dateM[1]              : null,
+      views: viewsM ? parseInt(viewsM[1], 10) : null,
+    };
   }
 
-  function resolve(id) {
-    const c = cacheGet(id);
+  /* ---------- Datum auflösen (+ Views als Nebeneffekt cachen) ------- */
+
+  function resolveDate(id) {
+    const c = cacheGet("xdate:" + id);
     if (c !== undefined) return Promise.resolve(c === "NA" ? null : c);
-    return new Promise((res) => {
+    return new Promise(res => {
       enqueue(async () => {
-        const again = cacheGet(id);
+        const again = cacheGet("xdate:" + id);
         if (again !== undefined) { res(again === "NA" ? null : again); return; }
         try {
-          const iso = await fetchUploadDate(id);
-          cacheSet(id, iso || "NA");
-          res(iso);
-        } catch (_) { res(null); }
+          const data = await fetchVideoData(id);
+          cacheSet("xdate:"  + id, data.date  || "NA");
+          cacheSet("xviews:" + id, data.views !== null ? String(data.views) : "NA");
+          res(data.date);
+        } catch (_) {
+          cacheSet("xdate:"  + id, "NA");
+          cacheSet("xviews:" + id, "NA");
+          res(null);
+        }
       });
     });
   }
 
-  /* ---------- Badge-CSS aus Einstellungen berechnen ---------------- */
+  /* ---------- Aufrufe auflösen (aus Cache oder nach Date-Fetch) ------ */
+
+  function resolveViews(id) {
+    const c = cacheGet("xviews:" + id);
+    if (c !== undefined) return Promise.resolve(c === "NA" ? null : parseInt(c, 10));
+    // Wird als Nebeneffekt von resolveDate befüllt
+    return resolveDate(id).then(() => {
+      const v = cacheGet("xviews:" + id);
+      return (v && v !== "NA") ? parseInt(v, 10) : null;
+    });
+  }
+
+  /* ---------- Dislikes von RYD-API auflösen ------------------------- */
+
+  function resolveDislikes(id) {
+    const c = cacheGet("xdislike:" + id);
+    if (c !== undefined) return Promise.resolve(c === "NA" ? null : parseInt(c, 10));
+    return new Promise(res => {
+      enqueue(async () => {
+        const again = cacheGet("xdislike:" + id);
+        if (again !== undefined) { res(again === "NA" ? null : parseInt(again, 10)); return; }
+        try {
+          const r    = await fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${id}`);
+          const json = await r.json();
+          const count = typeof json.dislikes === "number" ? json.dislikes : null;
+          cacheSet("xdislike:" + id, count !== null ? String(count) : "NA");
+          res(count);
+        } catch (_) {
+          cacheSet("xdislike:" + id, "NA");
+          res(null);
+        }
+      });
+    });
+  }
+
+  /* ---------- Metadata-Line finden (robust) ------------------------- */
+
+  function findMetadataLine(el) {
+    const byId =
+      el.querySelector("#metadata-line") ||
+      el.querySelector(".metadata-line") ||
+      el.querySelector("ytd-video-meta-block #metadata-line") ||
+      el.querySelector("ytd-video-meta-block") ||
+      el.querySelector("#metadata") ||
+      el.querySelector("#details #meta");
+    if (byId) return byId;
+    const span = el.querySelector("span.inline-metadata-item, .inline-metadata-item");
+    return span ? span.parentElement : null;
+  }
+
+  /* ---------- Badge-CSS aus Einstellungen --------------------------- */
 
   function buildBadgeCSS() {
-    const d = CONFIG.badgeDesign || DEFAULTS.badgeDesign;
+    const d   = CONFIG.badgeDesign || DEFAULTS.badgeDesign;
     const hex = d.color;
-    const r = parseInt(hex.slice(1,3),16);
-    const g = parseInt(hex.slice(3,5),16);
-    const b = parseInt(hex.slice(5,7),16);
+    const r   = parseInt(hex.slice(1,3),16);
+    const g   = parseInt(hex.slice(3,5),16);
+    const b   = parseInt(hex.slice(5,7),16);
     const bgA = (d.bgAlpha / 100).toFixed(2);
     const bdA = (d.borderAlpha / 100).toFixed(2);
+    const base = `
+      display:inline-flex;align-items:center;vertical-align:middle;
+      gap:${d.gap}px;margin-left:${d.ml}px;
+      padding:${d.py}px ${d.px}px;border-radius:${d.radius}px;
+      font-weight:${d.fontWeight};font-size:${d.fontSize}rem;
+      line-height:${d.lineHeight};white-space:nowrap;
+    `;
     return `
       .xdate-badge{
-        display:inline-flex;
-        align-items:center;
-        gap:${d.gap}px;
-        margin-left:${d.ml}px;
-        padding:${d.py}px ${d.px}px;
-        border-radius:${d.radius}px;
-        font-weight:${d.fontWeight};
-        font-size:${d.fontSize}rem;
-        line-height:${d.lineHeight};
-        white-space:nowrap;
+        ${base}
         color:${d.color};
         background:rgba(${r},${g},${b},${bgA});
         border:${d.bw}px solid rgba(${r},${g},${b},${bdA});
       }
-      .xdate-badge.xdate-wait{color:#9aa0a6;background:rgba(154,160,166,.14);border-color:rgba(154,160,166,.30);font-weight:400;}
-      .xdate-badge.xdate-err{color:#e0a030;background:rgba(224,160,48,.14);border-color:rgba(224,160,48,.30);}
+      .xdate-badge.xdate-wait{
+        color:#9aa0a6;background:rgba(154,160,166,.14);
+        border-color:rgba(154,160,166,.30);font-weight:400;
+      }
+      .xdate-badge.xdate-err{
+        color:#e0a030;background:rgba(224,160,48,.14);
+        border-color:rgba(224,160,48,.30);
+      }
+      .xdate-badge.xdate-views{
+        color:#5b9bd5;background:rgba(91,155,213,0.00);
+        border-color:rgba(91,155,213,0.30);
+      }
+      .xdate-badge.xdate-dislike{
+        color:#e05555;background:rgba(224,85,85,0.00);
+        border-color:rgba(224,85,85,0.30);
+      }
     `;
   }
 
@@ -180,47 +253,75 @@
 
   function annotate(el) {
     if (el.dataset.xdate) return;
+
     const a = el.querySelector(
-      'a#thumbnail[href], a#video-title-link[href], a#video-title[href], a[href*="/watch?v="], a[href*="/shorts/"]'
+      'a#thumbnail[href], a#video-title-link[href], a#video-title[href], ' +
+      'a[href*="/watch?v="], a[href*="/shorts/"]'
     );
     if (!a) return;
     const id = idFromHref(a.getAttribute("href"));
     if (!id) return;
-    const line =
-      el.querySelector("#metadata-line") ||
-      el.querySelector(".metadata-line") ||
-      el.querySelector("ytd-video-meta-block #metadata-line") ||
-      el.querySelector("ytd-video-meta-block") ||
-      el.querySelector("#metadata") ||
-      el.querySelector("#details #meta");
+    const line = findMetadataLine(el);
     if (!line) return;
 
     el.dataset.xdate = "1";
-    const badge = document.createElement("span");
-    badge.className = "xdate-badge xdate-wait";
-    badge.textContent = "lädt…";
-    line.appendChild(badge);
 
-    resolve(id).then((iso) => {
+    // ── Datum-Badge ──────────────────────────────────────────────────
+    const dateBadge = document.createElement("span");
+    dateBadge.className = "xdate-badge xdate-wait";
+    dateBadge.textContent = "…";
+    line.appendChild(dateBadge);
+
+    resolveDate(id).then(iso => {
       const f = iso ? formatDate(iso) : null;
       if (!f) {
-        badge.className = "xdate-badge xdate-err";
-        badge.textContent = "📅 ?";
-        badge.title = "Datum konnte nicht ermittelt werden";
+        dateBadge.className = "xdate-badge xdate-err";
+        dateBadge.textContent = "📅 ?";
+        dateBadge.title = "Datum nicht ermittelbar";
         return;
       }
-      badge.className = "xdate-badge";
-      badge.textContent = f;
-      badge.title = "Exaktes Hochladedatum";
-
+      dateBadge.className = "xdate-badge";
+      dateBadge.textContent = f;
+      dateBadge.title = "Exaktes Hochladedatum";
       if (CONFIG.mode === "replace") {
-        const items = line.querySelectorAll(".inline-metadata-item");
+        const items = [...line.querySelectorAll(".inline-metadata-item")]
+          .filter(i => !i.classList.contains("xdate-badge"));
         if (items.length) items[items.length - 1].style.display = "none";
       }
     });
+
+    // ── Exakte Aufrufe ───────────────────────────────────────────────
+    if (CONFIG.showExactViews) {
+      const viewsBadge = document.createElement("span");
+      viewsBadge.className = "xdate-badge xdate-views xdate-wait";
+      viewsBadge.textContent = "…";
+      line.appendChild(viewsBadge);
+
+      resolveViews(id).then(views => {
+        if (views === null) { viewsBadge.remove(); return; }
+        viewsBadge.className = "xdate-badge xdate-views";
+        viewsBadge.textContent = "👁 " + formatCount(views);
+        viewsBadge.title = "Exakte Aufrufzahl";
+      });
+    }
+
+    // ── Dislikes (Return YouTube Dislike API) ─────────────────────────
+    if (CONFIG.showDislikes) {
+      const dislikeBadge = document.createElement("span");
+      dislikeBadge.className = "xdate-badge xdate-dislike xdate-wait";
+      dislikeBadge.textContent = "…";
+      line.appendChild(dislikeBadge);
+
+      resolveDislikes(id).then(dislikes => {
+        if (dislikes === null) { dislikeBadge.remove(); return; }
+        dislikeBadge.className = "xdate-badge xdate-dislike";
+        dislikeBadge.textContent = "👎 " + formatCount(dislikes);
+        dislikeBadge.title = "Dislikes (Return YouTube Dislike)";
+      });
+    }
   }
 
-  /* ---------- Alle Badges zurücksetzen und neu rendern ------------- */
+  /* ---------- Reset + Scan ------------------------------------------ */
 
   function resetBadges() {
     document.querySelectorAll("[data-xdate]").forEach(el => {
@@ -237,7 +338,7 @@
     document.querySelectorAll(RENDERERS).forEach(annotate);
   }
 
-  /* ---------- Einstellungen laden & anwenden ----------------------- */
+  /* ---------- Einstellungen laden ---------------------------------- */
 
   function loadSettings(callback) {
     chrome.storage.sync.get(DEFAULTS, (cfg) => {
@@ -256,24 +357,17 @@
       injectStyle();
       resetBadges();
     }
-    if (msg.type === "RESCAN") {
-      resetBadges();
-    }
+    if (msg.type === "RESCAN") resetBadges();
   });
 
   /* ---------- Observer + YouTube-Navigation ------------------------ */
 
-  const debouncedScan = debounce(scan, 250);
-  const observer = new MutationObserver(debouncedScan);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-
-  ["yt-navigate-finish", "yt-page-data-updated"].forEach((ev) =>
-    window.addEventListener(ev, () => setTimeout(scan, 300))
+  const debouncedScan = debounce(scan, 200);
+  new MutationObserver(debouncedScan).observe(document.documentElement, { childList: true, subtree: true });
+  ["yt-navigate-finish", "yt-page-data-updated"].forEach(ev =>
+    window.addEventListener(ev, () => setTimeout(scan, 400))
   );
-
-  setInterval(scan, 1500);
-
-  /* ---------- Start ------------------------------------------------ */
+  setInterval(scan, 1000);
 
   loadSettings(scan);
 })();
