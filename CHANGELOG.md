@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.4] – 2026-05-31
+
+- Fix: Popup-Vorschau zeigt korrekte YouTube-Groesse (rem zu px)
+- Fix: Popup-Vorschau uebernimmt gespeichertes badgeDesign
+- Neu: Version-Chip mit Auto-Update-Check beim Oeffnen des Popups
+- Neu: Klickbarer Update-Button wenn neue Version verfuegbar
+- Neu: host_permissions fuer GitHub Pages (Update-Check)
+
 ## [1.1.3] – 2026-05-31
 
 - Fix: findMetadataLine() mit inline-metadata-item Fallback fuer alle Renderer
