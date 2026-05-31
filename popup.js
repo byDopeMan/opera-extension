@@ -162,8 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("format").value            = cfg.format;
     document.getElementById("mode").value              = cfg.mode;
     document.getElementById("showTime").checked        = cfg.showTime;
-    document.getElementById("showDislikes").checked    = cfg.showDislikes   ?? true;
-    document.getElementById("showExactViews").checked  = cfg.showExactViews ?? true;
+    document.getElementById("showDislikes").checked    = cfg.showDislikes ?? true;
 
     applyEnabled(cfg.enabled);
     updatePreview(design, cfg.format, cfg.showTime);
@@ -191,7 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
       mode:           document.getElementById("mode").value,
       showTime:       document.getElementById("showTime").checked,
       showDislikes:   document.getElementById("showDislikes").checked,
-      showExactViews: document.getElementById("showExactViews").checked,
     };
     chrome.storage.sync.set(cfg, () => {
       sendToActiveTab({ type: "SETTINGS_UPDATED", cfg });

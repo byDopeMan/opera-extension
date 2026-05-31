@@ -1,5 +1,5 @@
 /* =====================================================================
-   YouTube – Exaktes Upload-Datum + Dislikes + Exakte Aufrufe
+   YouTube – Exaktes Upload-Datum + Dislikes am Button
    ===================================================================== */
 
 (() => {
@@ -7,12 +7,11 @@
 
   /* ---------- Standard-Einstellungen -------------------------------- */
   const DEFAULTS = {
-    enabled:        true,
-    format:         "DD.MM.YYYY",
-    mode:           "append",
-    showTime:       false,
-    showDislikes:   true,
-    showExactViews: true,
+    enabled:      true,
+    format:       "DD.MM.YYYY",
+    mode:         "append",
+    showTime:     false,
+    showDislikes: true,      // Dislike-Zahl am Like/Dislike-Button der Video-Seite
     badgeDesign: {
       color: "#43c463", bgAlpha: 0, borderAlpha: 35,
       fontSize: 0.85, fontWeight: "300", lineHeight: 1.35,
@@ -23,7 +22,7 @@
 
   let CONFIG = { ...DEFAULTS };
 
-  /* ---------- Renderer-Selektoren ----------------------------------- */
+  /* ---------- Renderer-Selektoren (Listen) -------------------------- */
   const RENDERERS = [
     "ytd-video-renderer",
     "ytd-rich-item-renderer",
@@ -51,6 +50,11 @@
       if (m2) return m2[1];
     } catch (_) {}
     return null;
+  }
+
+  function currentWatchId() {
+    if (location.pathname !== "/watch") return null;
+    return new URLSearchParams(location.search).get("v");
   }
 
   /* ---------- Formatierung ----------------------------------------- */
@@ -108,20 +112,14 @@
     }
   }
 
-  /* ---------- Video-Daten von Seite holen (Datum + Aufrufe) --------- */
+  /* ---------- Datum von Video-Seite holen --------------------------- */
 
-  async function fetchVideoData(id) {
+  async function fetchUploadDate(id) {
     const res  = await fetch("https://www.youtube.com/watch?v=" + id, { credentials: "include" });
     const html = await res.text();
-    const dateM  = html.match(/"uploadDate":"([^"]+)"/) || html.match(/"publishDate":"([^"]+)"/);
-    const viewsM = html.match(/"viewCount":"(\d+)"/);
-    return {
-      date:  dateM  ? dateM[1]              : null,
-      views: viewsM ? parseInt(viewsM[1], 10) : null,
-    };
+    const m = html.match(/"uploadDate":"([^"]+)"/) || html.match(/"publishDate":"([^"]+)"/);
+    return m ? m[1] : null;
   }
-
-  /* ---------- Datum auflösen (+ Views als Nebeneffekt cachen) ------- */
 
   function resolveDate(id) {
     const c = cacheGet("xdate:" + id);
@@ -131,28 +129,14 @@
         const again = cacheGet("xdate:" + id);
         if (again !== undefined) { res(again === "NA" ? null : again); return; }
         try {
-          const data = await fetchVideoData(id);
-          cacheSet("xdate:"  + id, data.date  || "NA");
-          cacheSet("xviews:" + id, data.views !== null ? String(data.views) : "NA");
-          res(data.date);
+          const iso = await fetchUploadDate(id);
+          cacheSet("xdate:" + id, iso || "NA");
+          res(iso);
         } catch (_) {
-          cacheSet("xdate:"  + id, "NA");
-          cacheSet("xviews:" + id, "NA");
+          cacheSet("xdate:" + id, "NA");
           res(null);
         }
       });
-    });
-  }
-
-  /* ---------- Aufrufe auflösen (aus Cache oder nach Date-Fetch) ------ */
-
-  function resolveViews(id) {
-    const c = cacheGet("xviews:" + id);
-    if (c !== undefined) return Promise.resolve(c === "NA" ? null : parseInt(c, 10));
-    // Wird als Nebeneffekt von resolveDate befüllt
-    return resolveDate(id).then(() => {
-      const v = cacheGet("xviews:" + id);
-      return (v && v !== "NA") ? parseInt(v, 10) : null;
     });
   }
 
@@ -204,16 +188,13 @@
     const b   = parseInt(hex.slice(5,7),16);
     const bgA = (d.bgAlpha / 100).toFixed(2);
     const bdA = (d.borderAlpha / 100).toFixed(2);
-    const base = `
-      display:inline-flex;align-items:center;vertical-align:middle;
-      gap:${d.gap}px;margin-left:${d.ml}px;
-      padding:${d.py}px ${d.px}px;border-radius:${d.radius}px;
-      font-weight:${d.fontWeight};font-size:${d.fontSize}rem;
-      line-height:${d.lineHeight};white-space:nowrap;
-    `;
     return `
       .xdate-badge{
-        ${base}
+        display:inline-flex;align-items:center;vertical-align:middle;
+        gap:${d.gap}px;margin-left:${d.ml}px;
+        padding:${d.py}px ${d.px}px;border-radius:${d.radius}px;
+        font-weight:${d.fontWeight};font-size:${d.fontSize}rem;
+        line-height:${d.lineHeight};white-space:nowrap;
         color:${d.color};
         background:rgba(${r},${g},${b},${bgA});
         border:${d.bw}px solid rgba(${r},${g},${b},${bdA});
@@ -226,18 +207,10 @@
         color:#e0a030;background:rgba(224,160,48,.14);
         border-color:rgba(224,160,48,.30);
       }
-      .xdate-badge.xdate-views{
-        color:#5b9bd5;background:rgba(91,155,213,0.00);
-        border-color:rgba(91,155,213,0.30);
-      }
-      .xdate-badge.xdate-dislike{
-        color:#e05555;background:rgba(224,85,85,0.00);
-        border-color:rgba(224,85,85,0.30);
-      }
+      /* Dislike-Zahl im nativen Button-Stil (kein eigenes Design) */
+      .xdislike-count{ margin-left:6px; }
     `;
   }
-
-  /* ---------- Style injizieren ------------------------------------- */
 
   function injectStyle() {
     let s = document.getElementById("xdate-style");
@@ -249,7 +222,7 @@
     s.textContent = buildBadgeCSS();
   }
 
-  /* ---------- Badge einblenden ------------------------------------- */
+  /* ---------- Datum-Badge in Listen --------------------------------- */
 
   function annotate(el) {
     if (el.dataset.xdate) return;
@@ -266,59 +239,105 @@
 
     el.dataset.xdate = "1";
 
-    // ── Datum-Badge ──────────────────────────────────────────────────
-    const dateBadge = document.createElement("span");
-    dateBadge.className = "xdate-badge xdate-wait";
-    dateBadge.textContent = "…";
-    line.appendChild(dateBadge);
+    const badge = document.createElement("span");
+    badge.className = "xdate-badge xdate-wait";
+    badge.textContent = "…";
+    line.appendChild(badge);
 
     resolveDate(id).then(iso => {
       const f = iso ? formatDate(iso) : null;
       if (!f) {
-        dateBadge.className = "xdate-badge xdate-err";
-        dateBadge.textContent = "📅 ?";
-        dateBadge.title = "Datum nicht ermittelbar";
+        badge.className = "xdate-badge xdate-err";
+        badge.textContent = "📅 ?";
+        badge.title = "Datum nicht ermittelbar";
         return;
       }
-      dateBadge.className = "xdate-badge";
-      dateBadge.textContent = f;
-      dateBadge.title = "Exaktes Hochladedatum";
+      badge.className = "xdate-badge";
+      badge.textContent = f;
+      badge.title = "Exaktes Hochladedatum";
       if (CONFIG.mode === "replace") {
         const items = [...line.querySelectorAll(".inline-metadata-item")]
           .filter(i => !i.classList.contains("xdate-badge"));
         if (items.length) items[items.length - 1].style.display = "none";
       }
     });
+  }
 
-    // ── Exakte Aufrufe ───────────────────────────────────────────────
-    if (CONFIG.showExactViews) {
-      const viewsBadge = document.createElement("span");
-      viewsBadge.className = "xdate-badge xdate-views xdate-wait";
-      viewsBadge.textContent = "…";
-      line.appendChild(viewsBadge);
+  /* ---------- Exaktes Datum auf der Watch-Seite (Hauptvideo) -------- */
 
-      resolveViews(id).then(views => {
-        if (views === null) { viewsBadge.remove(); return; }
-        viewsBadge.className = "xdate-badge xdate-views";
-        viewsBadge.textContent = "👁 " + formatCount(views);
-        viewsBadge.title = "Exakte Aufrufzahl";
-      });
-    }
+  function annotateWatchMetadata() {
+    const id = currentWatchId();
+    if (!id) return;
 
-    // ── Dislikes (Return YouTube Dislike API) ─────────────────────────
-    if (CONFIG.showDislikes) {
-      const dislikeBadge = document.createElement("span");
-      dislikeBadge.className = "xdate-badge xdate-dislike xdate-wait";
-      dislikeBadge.textContent = "…";
-      line.appendChild(dislikeBadge);
+    const meta =
+      document.querySelector("ytd-watch-metadata #info-container") ||
+      document.querySelector("ytd-watch-metadata #info") ||
+      document.querySelector("#above-the-fold #info-container") ||
+      document.querySelector("ytd-watch-info-text #info");
+    if (!meta) return;
 
-      resolveDislikes(id).then(dislikes => {
-        if (dislikes === null) { dislikeBadge.remove(); return; }
-        dislikeBadge.className = "xdate-badge xdate-dislike";
-        dislikeBadge.textContent = "👎 " + formatCount(dislikes);
-        dislikeBadge.title = "Dislikes (Return YouTube Dislike)";
-      });
-    }
+    let badge = meta.querySelector(".xdate-watch-badge");
+    if (badge && badge.dataset.vid === id) return; // korrekt schon vorhanden
+    if (badge) badge.remove();                      // altes Video → entfernen
+
+    badge = document.createElement("span");
+    badge.className = "xdate-badge xdate-watch-badge xdate-wait";
+    badge.dataset.vid = id;
+    badge.textContent = "…";
+    meta.appendChild(badge);
+
+    resolveDate(id).then(iso => {
+      if (badge.dataset.vid !== id) return;
+      const f = iso ? formatDate(iso) : null;
+      if (!f) { badge.remove(); return; }
+      badge.className = "xdate-badge xdate-watch-badge";
+      badge.textContent = f;
+      badge.title = "Exaktes Hochladedatum";
+    });
+  }
+
+  /* ---------- Dislike-Zahl neben dem Dislike-Button ---------------- */
+
+  function findDislikeButton() {
+    return (
+      document.querySelector("dislike-button-view-model button") ||
+      document.querySelector("ytd-toggle-button-renderer#dislike-button button") ||
+      document.querySelector("#segmented-dislike-button button") ||
+      document.querySelector('button[aria-label*="gefällt mir nicht" i]') ||
+      document.querySelector('button[aria-label*="dislike" i]') ||
+      document.querySelector('button[title*="gefällt mir nicht" i]')
+    );
+  }
+
+  function annotateDislikeButton() {
+    if (!CONFIG.showDislikes) return;
+    const id = currentWatchId();
+    if (!id) return;
+
+    const btn = findDislikeButton();
+    if (!btn) return;
+
+    resolveDislikes(id).then(n => {
+      if (n === null) return;
+      if (currentWatchId() !== id) return; // inzwischen weiternavigiert
+
+      const want = formatCount(n);
+      // 1) Natives Text-Element des Buttons nutzen (wie beim Like-Button)
+      const native = btn.querySelector(".yt-spec-button-shape-next__button-text-content");
+      if (native) {
+        if (native.textContent.trim() !== want) native.textContent = want;
+        native.dataset.xdislike = "1";
+        return;
+      }
+      // 2) Fallback: eigenes Span anhängen
+      let span = btn.querySelector(".xdislike-count");
+      if (!span) {
+        span = document.createElement("span");
+        span.className = "xdislike-count";
+        btn.appendChild(span);
+      }
+      if (span.textContent !== want) span.textContent = want;
+    });
   }
 
   /* ---------- Reset + Scan ------------------------------------------ */
@@ -329,6 +348,7 @@
       el.querySelectorAll(".xdate-badge").forEach(b => b.remove());
       el.querySelectorAll(".inline-metadata-item").forEach(i => i.style.display = "");
     });
+    document.querySelectorAll(".xdate-watch-badge, .xdislike-count").forEach(b => b.remove());
     scan();
   }
 
@@ -336,6 +356,8 @@
     if (!CONFIG.enabled) return;
     injectStyle();
     document.querySelectorAll(RENDERERS).forEach(annotate);
+    annotateWatchMetadata();
+    annotateDislikeButton();
   }
 
   /* ---------- Einstellungen laden ---------------------------------- */

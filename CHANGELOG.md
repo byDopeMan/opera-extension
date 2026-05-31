@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.3] – 2026-05-31
+
+- Entfernt: Exakte-Aufrufe-Badge und separates Dislike-Badge aus Listen
+- Neu: Dislike-Zahl wird direkt am Dislike-Button der Video-Seite angezeigt (nativer Stil)
+- Neu: Exaktes Datum jetzt auch in der Hauptzeile der Video-Seite (nicht mehr 'vor 2 Monaten')
+
 ## [1.2.2] – 2026-05-31
 
 - Neu: Inhalt-Einstellungen (Emoji, Format, Modus, Uhrzeit) werden bei Design-Export/Import mit uebertragen (als CSS-Kommentar)
