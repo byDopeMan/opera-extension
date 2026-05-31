@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.2] – 2026-05-31
+
+- Neu: Inhalt-Einstellungen (Emoji, Format, Modus, Uhrzeit) werden bei Design-Export/Import mit uebertragen (als CSS-Kommentar)
+- Neu: Update-Chip im Popup loest jetzt sofortiges Update aus (requestUpdateCheck + reload) statt nur Download
+
 ## [1.2.1] – 2026-05-31
 
 - Aenderung: Design-Import/Export nutzt jetzt echtes CSS statt JSON (einfach CSS einfuegen)

@@ -268,7 +268,11 @@ function applyDesignToControls(d) {
   set("c-ml",           d.ml,          "c-ml-val",     "px");
   set("c-gap",          d.gap,         "c-gap-val",    "px");
   set("c-bw",           d.bw,          "c-bw-val",     "px");
-  if (d.emoji != null) set("c-emoji", d.emoji);
+  // Inhalt-Kategorie
+  if (d.emoji    != null) set("c-emoji",  d.emoji);
+  if (d.format   != null) document.getElementById("c-format").value = d.format;
+  if (d.mode     != null) document.getElementById("c-mode").value   = d.mode;
+  if (d.showTime != null) document.getElementById("c-time").checked  = !!d.showTime;
   buildCards();
   updateCSSOutput(getSettings());
 }
@@ -348,12 +352,30 @@ function parseCSS(css) {
     if (a !== null) { d.borderAlpha = Math.round(a * 100); found++; }
   }
 
+  // Inhalt-Kategorie aus dem Meta-Kommentar lesen:  /* xdate-meta {...} */
+  const meta = css.match(/xdate-meta\s*(\{[^}]*\})/);
+  if (meta) {
+    try {
+      const m = JSON.parse(meta[1]);
+      if (typeof m.emoji    === "string")  { d.emoji    = m.emoji;    found++; }
+      if (typeof m.format   === "string")  { d.format   = m.format;   found++; }
+      if (typeof m.mode     === "string")  { d.mode     = m.mode;     found++; }
+      if (typeof m.showTime === "boolean") { d.showTime = m.showTime; found++; }
+    } catch (_) {}
+  }
+
   return found >= 2 ? d : null;  // mind. 2 erkannte Properties = gültiges CSS
 }
 
-// ── Exportieren: aktuelles CSS in Textarea + Zwischenablage ─────────
+// ── Exportieren: CSS + Inhalt-Einstellungen (als Kommentar) ─────────
 document.getElementById("export-btn").addEventListener("click", () => {
-  const css = document.getElementById("css-output").textContent;
+  const s    = getSettings();
+  updateCSSOutput(s); // sicherstellen, dass die CSS-Box aktuell ist
+  const meta = JSON.stringify({
+    emoji: s.emoji, format: s.format, mode: s.mode, showTime: s.showTime,
+  });
+  const css  = document.getElementById("css-output").textContent +
+               `\n/* xdate-meta ${meta} */`;
   document.getElementById("share-code").value = css;
   navigator.clipboard.writeText(css).then(() => {
     const btn = document.getElementById("export-btn");

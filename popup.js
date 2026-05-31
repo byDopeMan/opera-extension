@@ -93,10 +93,10 @@ async function checkForUpdate(currentVersion) {
     const crxUrl    = crxMatch ? crxMatch[1] : null;
 
     if (isNewer(remoteVer, currentVersion)) {
-      chip.textContent = `↑ v${remoteVer} verfügbar`;
+      chip.textContent = `↑ v${remoteVer} – jetzt updaten`;
       chip.classList.add("update-available");
-      chip.title = "Klicken zum Herunterladen";
-      if (crxUrl) chip.addEventListener("click", () => chrome.tabs.create({ url: crxUrl }));
+      chip.title = "Klicken um sofort zu aktualisieren";
+      chip.addEventListener("click", () => triggerUpdate(chip, crxUrl));
     } else {
       chip.textContent = `v${currentVersion} ✓`;
       chip.title       = "Aktuellste Version";
@@ -104,6 +104,32 @@ async function checkForUpdate(currentVersion) {
   } catch (_) {
     // Offline oder Netzwerkfehler — still fail
     chip.textContent = `v${currentVersion}`;
+  }
+}
+
+/* ── Sofort-Update auslösen (für .crx-installierte Extensions) ─────── */
+function triggerUpdate(chip, crxUrl) {
+  chip.textContent = "⏳ Suche Update…";
+  if (chrome.runtime.requestUpdateCheck) {
+    try {
+      chrome.runtime.requestUpdateCheck((status) => {
+        void chrome.runtime.lastError;
+        if (status === "update_available") {
+          chip.textContent = "✓ Installiere…";
+          setTimeout(() => chrome.runtime.reload(), 600);
+        } else if (status === "throttled") {
+          chip.textContent = "⏳ Kurz warten…";
+        } else {
+          // Opera hat das Update noch nicht gezogen → .crx direkt öffnen
+          if (crxUrl) chrome.tabs.create({ url: crxUrl });
+          else chip.textContent = "Später erneut versuchen";
+        }
+      });
+    } catch (_) {
+      if (crxUrl) chrome.tabs.create({ url: crxUrl });
+    }
+  } else if (crxUrl) {
+    chrome.tabs.create({ url: crxUrl });
   }
 }
 
