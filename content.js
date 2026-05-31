@@ -220,8 +220,7 @@
         color:#e0a030;background:rgba(224,160,48,.14);
         border-color:rgba(224,160,48,.30);
       }
-      /* Dislike-Zahl im nativen Button-Stil (kein eigenes Design) */
-      .xdislike-count{ margin-left:6px; }
+      /* Dislike-Zahl: erbt natives Button-Styling, keine Extra-Regeln nötig */
     `;
   }
 
@@ -341,13 +340,26 @@
   /* ---------- Dislike-Zahl neben dem Dislike-Button ---------------- */
 
   function findDislikeButton() {
+    // Bevorzugt: zweiter Button im Like/Dislike-Segment (robust gegen Klassennamen)
+    const seg = document.querySelector(
+      "segmented-like-dislike-button-view-model, " +
+      "ytd-segmented-like-dislike-button-renderer"
+    );
+    if (seg) {
+      const dvm = seg.querySelector(
+        "dislike-button-view-model, .ytDislikeButtonViewModelHost, #dislike-button"
+      );
+      const inner = dvm && dvm.querySelector("button");
+      if (inner) return inner;
+      const btns = seg.querySelectorAll("button");
+      if (btns.length >= 2) return btns[1]; // [0]=Like, [1]=Dislike
+    }
+    // Fallbacks
     return (
       document.querySelector("dislike-button-view-model button") ||
-      document.querySelector("ytd-toggle-button-renderer#dislike-button button") ||
-      document.querySelector("#segmented-dislike-button button") ||
+      document.querySelector(".ytDislikeButtonViewModelHost button") ||
       document.querySelector('button[aria-label*="gefällt mir nicht" i]') ||
-      document.querySelector('button[aria-label*="dislike" i]') ||
-      document.querySelector('button[title*="gefällt mir nicht" i]')
+      document.querySelector('button[aria-label*="dislike" i]')
     );
   }
 
@@ -364,21 +376,16 @@
       if (currentWatchId() !== id) return; // inzwischen weiternavigiert
 
       const want = formatCount(n);
-      // 1) Natives Text-Element des Buttons nutzen (wie beim Like-Button)
-      const native = btn.querySelector(".yt-spec-button-shape-next__button-text-content");
-      if (native) {
-        if (native.textContent.trim() !== want) native.textContent = want;
-        native.dataset.xdislike = "1";
-        return;
+      // Natives Text-Element nutzen — oder erstellen (Dislike-Button hat keins,
+      // da YouTube dort normalerweise keine Zahl rendert). Gleiche Klasse wie
+      // beim Like-Button → korrektes natives Styling/Platzierung.
+      let txt = btn.querySelector(".yt-spec-button-shape-next__button-text-content");
+      if (!txt) {
+        txt = document.createElement("div");
+        txt.className = "yt-spec-button-shape-next__button-text-content xdislike-count";
+        btn.appendChild(txt);
       }
-      // 2) Fallback: eigenes Span anhängen
-      let span = btn.querySelector(".xdislike-count");
-      if (!span) {
-        span = document.createElement("span");
-        span.className = "xdislike-count";
-        btn.appendChild(span);
-      }
-      if (span.textContent !== want) span.textContent = want;
+      if (txt.textContent.trim() !== want) txt.textContent = want;
     });
   }
 

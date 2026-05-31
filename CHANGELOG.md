@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.6] – 2026-05-31
+
+- Fix: Dislike-Zahl erscheint jetzt - Text-Element wird am Dislike-Button erstellt (existierte nicht) und zweiter Button im Like/Dislike-Segment wird robust erkannt
+
 ## [1.2.5] – 2026-05-31
 
 - Fix: KORREKTE Klassennamen fuer YouTubes neues Format (ytContentMetadataViewModelMetadataRow) - Startseite und Sidebar funktionieren jetzt
