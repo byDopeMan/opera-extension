@@ -220,7 +220,8 @@
         color:#e0a030;background:rgba(224,160,48,.14);
         border-color:rgba(224,160,48,.30);
       }
-      /* Dislike-Zahl: erbt natives Button-Styling, keine Extra-Regeln nötig */
+      /* Dislike-Zahl: kleiner Abstand zum Daumen (Icon-Button hat kein Text-Padding) */
+      .xdislike-count{ margin-left:6px; padding-right:2px; }
     `;
   }
 

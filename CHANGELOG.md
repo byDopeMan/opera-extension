@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.7] – 2026-05-31
+
+- Fix: Abstand zwischen Daumen-Symbol und Dislike-Zahl (klebte vorher am Icon)
+
 ## [1.2.6] – 2026-05-31
 
 - Fix: Dislike-Zahl erscheint jetzt - Text-Element wird am Dislike-Button erstellt (existierte nicht) und zweiter Button im Like/Dislike-Segment wird robust erkannt
