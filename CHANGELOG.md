@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.8] – 2026-05-31
+
+- Fix: .crx-Groesse drastisch reduziert (alte .crx wurde versehentlich in jede neue Version mitverpackt)
+
 ## [1.2.7] – 2026-05-31
 
 - Fix: Abstand zwischen Daumen-Symbol und Dislike-Zahl (klebte vorher am Icon)
