@@ -45,7 +45,7 @@ git push -u origin main
 4. Speichern
 
 → Deine Seite ist jetzt erreichbar unter:
-`https://DEIN_USERNAME.github.io/yt-exact-date/`
+`https://byDopeMan.github.io/opera-extension/`
 
 Warten bis GitHub Pages bereit ist (~1–2 Minuten), dann testen:
 `https://DEIN_USERNAME.github.io/yt-exact-date/update.xml`

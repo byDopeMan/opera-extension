@@ -1,0 +1,21 @@
+# Privater Signierungsschlüssel — NIEMALS committen!
+*.pem
+
+# Claude Code interne Dateien
+.claude/
+
+# Node
+node_modules/
+package-lock.json
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Entwickler-Hilfsskripte (nicht Teil der Extension)
+bump-version.js
+
+# Temporäre Dateien
+*.tmp
+*.log

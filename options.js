@@ -66,11 +66,14 @@ function badgeCSS(s) {
   const rgb = hexToRgb(s.color);
   const bgA = (s.bgAlpha / 100).toFixed(2);
   const bdA = (s.borderAlpha / 100).toFixed(2);
+  // YouTube uses html { font-size: 10px }, so convert rem→px for accurate preview
+  const YT_REM = 10;
   return {
     display: "inline-flex", alignItems: "center", gap: s.gap + "px",
     marginLeft: s.ml + "px", padding: `${s.py}px ${s.px}px`,
     borderRadius: s.radius + "px", fontWeight: s.fontWeight,
-    fontSize: s.fontSize + "rem", lineHeight: s.lineHeight,
+    fontSize: (s.fontSize * YT_REM) + "px",
+    lineHeight: s.lineHeight,
     whiteSpace: "nowrap", color: s.color,
     background: `rgba(${rgb},${bgA})`,
     border: `${s.bw}px solid rgba(${rgb},${bdA})`,

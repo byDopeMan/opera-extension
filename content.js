@@ -26,12 +26,15 @@
 
   /* ---------- Renderer-Selektoren ----------------------------------- */
   const RENDERERS = [
-    "ytd-video-renderer",
-    "ytd-rich-item-renderer",
-    "ytd-grid-video-renderer",
-    "ytd-compact-video-renderer",
-    "ytd-playlist-video-renderer",
+    "ytd-video-renderer",           // Suchergebnisse
+    "ytd-rich-item-renderer",       // Startseite / Kanal-Grid (neu)
+    "ytd-rich-grid-media",          // Startseite Medien-Block
+    "ytd-grid-video-renderer",      // ältere Grids / Kanal-Tab
+    "ytd-compact-video-renderer",   // Sidebar
+    "ytd-playlist-video-renderer",  // Playlists
     "ytd-playlist-panel-video-renderer",
+    "ytd-movie-renderer",           // Filme
+    "ytd-shelf-renderer",           // Empfehlungs-Regale
   ].join(", ");
 
   /* ---------- Helfer ------------------------------------------------ */
@@ -183,7 +186,13 @@
     if (!a) return;
     const id = idFromHref(a.getAttribute("href"));
     if (!id) return;
-    const line = el.querySelector("#metadata-line") || el.querySelector(".metadata-line") || el.querySelector("#metadata");
+    const line =
+      el.querySelector("#metadata-line") ||
+      el.querySelector(".metadata-line") ||
+      el.querySelector("ytd-video-meta-block #metadata-line") ||
+      el.querySelector("ytd-video-meta-block") ||
+      el.querySelector("#metadata") ||
+      el.querySelector("#details #meta");
     if (!line) return;
 
     el.dataset.xdate = "1";
