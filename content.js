@@ -181,7 +181,10 @@
 
     // Neues Format (yt-lockup-view-model): letzte Metadaten-Zeile
     // (Aufrufe + Zeitangabe; die erste Zeile ist meist der Kanalname)
-    const rows = el.querySelectorAll(".yt-content-metadata-view-model-wiz__metadata-row");
+    const rows = el.querySelectorAll(
+      ".ytContentMetadataViewModelMetadataRow, " +
+      ".yt-content-metadata-view-model-wiz__metadata-row"
+    );
     if (rows.length) return rows[rows.length - 1];
 
     const span = el.querySelector("span.inline-metadata-item, .inline-metadata-item");
@@ -270,10 +273,16 @@
       badge.title = "Exaktes Hochladedatum";
       if (CONFIG.mode === "replace") {
         // Letztes natives Zeit-Element ausblenden (beide Formate)
-        const sel = ".inline-metadata-item, .yt-content-metadata-view-model-wiz__metadata-text";
+        const sel = ".inline-metadata-item, " +
+                    ".ytContentMetadataViewModelMetadataText, " +
+                    ".yt-content-metadata-view-model-wiz__metadata-text";
         const items = [...line.querySelectorAll(sel)]
           .filter(i => !i.classList.contains("xdate-badge"));
-        if (items.length) items[items.length - 1].style.display = "none";
+        if (items.length) {
+          const it = items[items.length - 1];
+          it.style.display = "none";
+          it.dataset.xdateHidden = "1";
+        }
       }
     });
   }
@@ -308,6 +317,24 @@
       badge.className = "xdate-badge xdate-watch-badge";
       badge.textContent = f;
       badge.title = "Exaktes Hochladedatum";
+
+      if (CONFIG.mode === "replace") {
+        // Natives Datum/Zeit-Element der Info-Zeile ausblenden
+        const info = document.querySelector("ytd-watch-metadata #info") ||
+                     document.querySelector("ytd-watch-info-text #info");
+        if (info) {
+          const spans = [...info.children]
+            .filter(c => c.tagName === "SPAN" &&
+                         c.textContent.trim() &&
+                         !c.classList.contains("xdate-badge"));
+          // letztes echtes span = Zeitangabe/Datum
+          if (spans.length) {
+            const sp = spans[spans.length - 1];
+            sp.style.display = "none";
+            sp.dataset.xdateHidden = "1";
+          }
+        }
+      }
     });
   }
 
@@ -361,9 +388,13 @@
     document.querySelectorAll("[data-xdate]").forEach(el => {
       delete el.dataset.xdate;
       el.querySelectorAll(".xdate-badge").forEach(b => b.remove());
-      el.querySelectorAll(".inline-metadata-item").forEach(i => i.style.display = "");
     });
     document.querySelectorAll(".xdate-watch-badge, .xdislike-count").forEach(b => b.remove());
+    // Alle von uns ausgeblendeten nativen Elemente wieder einblenden
+    document.querySelectorAll("[data-xdate-hidden]").forEach(el => {
+      el.style.display = "";
+      delete el.dataset.xdateHidden;
+    });
     scan();
   }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.5] – 2026-05-31
+
+- Fix: KORREKTE Klassennamen fuer YouTubes neues Format (ytContentMetadataViewModelMetadataRow) - Startseite und Sidebar funktionieren jetzt
+- Neu: replace-Modus blendet jetzt auch auf der Video-Seite die native Zeitangabe aus
+- Fix: resetBadges stellt alle ausgeblendeten nativen Elemente zuverlaessig wieder her
+
 ## [1.2.4] – 2026-05-31
 
 - Fix: Startseite und Watch-Sidebar werden jetzt unterstuetzt (YouTubes neues yt-lockup-view-model Format)
