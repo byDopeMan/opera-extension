@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 260px;
+      font-family: "Segoe UI", "Roboto", sans-serif;
+      background: #0f0f0f;
+      color: #f1f1f1;
+      font-size: 13px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 13px 14px 11px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    header .logo { font-size: 18px; }
+
+    header h1 {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: #f1f1f1;
+    }
+
+    header .version {
+      margin-left: auto;
+      font-size: 10px;
+      color: #555;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .toggle-label { font-weight: 500; }
+    .toggle-sub { font-size: 11px; color: #777; margin-top: 1px; }
+
+    /* Toggle switch */
+    .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: #333;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      left: 3px; top: 3px;
+      width: 14px; height: 14px;
+      background: #888;
+      border-radius: 50%;
+      transition: transform .2s, background .2s;
+    }
+    input:checked + .slider { background: rgba(67,196,99,.25); }
+    input:checked + .slider::before { transform: translateX(16px); background: #43c463; }
+
+    .section {
+      padding: 10px 14px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .section-title {
+      font-size: 10px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 8px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    .row label { color: #bbb; }
+
+    select {
+      background: #1a1a1a;
+      border: 1px solid #2e2e2e;
+      border-radius: 5px;
+      color: #f1f1f1;
+      font-size: 12px;
+      padding: 3px 7px;
+      cursor: pointer;
+    }
+
+    .badge-preview {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: #080808;
+      border-bottom: 1px solid #1a1a1a;
+      font-size: 12px;
+      color: #666;
+    }
+
+    #preview-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0px;
+      margin-left: 1px;
+      padding: 0px 5px;
+      border-radius: 8px;
+      font-weight: 300;
+      font-size: 0.85rem;
+      line-height: 1.35;
+      white-space: nowrap;
+      color: #43c463;
+      background: rgba(67,196,99,0.00);
+      border: 0.5px solid rgba(67,196,99,0.35);
+    }
+
+    footer {
+      padding: 10px 14px;
+      display: flex;
+      gap: 7px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 7px 0;
+      border-radius: 6px;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-primary { background: #43c463; color: #000; }
+    .btn-primary:hover { background: #5dd67a; }
+
+    .btn-secondary {
+      background: #1e1e1e;
+      color: #aaa;
+      border: 1px solid #2e2e2e;
+    }
+    .btn-secondary:hover { background: #272727; color: #f1f1f1; }
+
+    .scan-btn {
+      width: 100%;
+      padding: 6px 0;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 5px;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+      margin: 0 14px 10px;
+      width: calc(100% - 28px);
+      transition: color .15s, border-color .15s;
+    }
+    .scan-btn:hover { color: #f1f1f1; border-color: #444; }
+
+    body.disabled .section,
+    body.disabled .badge-preview { opacity: .4; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">📅</span>
+    <div>
+      <h1>Exaktes Upload-Datum</h1>
+    </div>
+    <span class="version" id="ver"></span>
+  </header>
+
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">Aktiviert</div>
+      <div class="toggle-sub">Datum auf YouTube anzeigen</div>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="enabled" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Einstellungen</div>
+
+    <div class="row">
+      <label>Format</label>
+      <select id="format">
+        <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+        <option value="D. Mon YYYY">D. Monat YYYY</option>
+        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Modus</label>
+      <select id="mode">
+        <option value="append">neben "vor X"</option>
+        <option value="replace">nur exaktes Datum</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Uhrzeit zeigen</label>
+      <label class="switch">
+        <input type="checkbox" id="showTime">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="badge-preview">
+    <span style="color:#555">Vorschau:</span>
+    <span id="preview-badge">📅 24.05.2025</span>
+  </div>
+
+  <footer>
+    <button class="btn btn-secondary" id="open-options">Design</button>
+    <button class="btn btn-primary" id="save-btn">Speichern</button>
+  </footer>
+
+  <button class="scan-btn" id="scan-btn">↻ Seite neu scannen</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>

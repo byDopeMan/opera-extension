@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
+  <app appid='DEINE_EXTENSION_ID_HIER'>
+    <updatecheck
+      status='ok'
+      version='1.1.0'
+      codebase='https://DEIN_GITHUB_USERNAME.github.io/yt-exact-date/yt-exact-date.crx'
+    />
+  </app>
+</gupdate>
