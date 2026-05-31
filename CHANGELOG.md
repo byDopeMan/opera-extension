@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0] – 2026-05-31
+
+- Neu: Return YouTube Dislike Integration (Dislike-Anzahl via RYD-API)
+- Neu: Exakte Aufrufzahl statt gerundeter Angaben (1.234.567)
+- Neu: Design Import/Export zum Teilen von Settings mit Freunden
+- Neu: Toggles fuer Dislikes und exakte Aufrufe im Popup
+- Fix: update.xml Regex-Bug (XML-Header wurde faelschlich ueberschrieben)
+
 ## [1.1.4] – 2026-05-31
 
 - Fix: Popup-Vorschau zeigt korrekte YouTube-Groesse (rem zu px)

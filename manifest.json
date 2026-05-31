@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube – Exaktes Upload-Datum",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "update_url": "https://bydopeman.github.io/opera-extension/update.xml",
   "description": "Zeigt das genaue Hochladedatum statt ungenauer Angaben wie 'vor 1 Jahr' – direkt in Suche, Startseite, Kanal und Sidebar.",
   "action": {
@@ -28,7 +28,8 @@
   ],
   "host_permissions": [
     "*://www.youtube.com/*",
-    "https://bydopeman.github.io/*"
+    "https://bydopeman.github.io/*",
+    "https://returnyoutubedislikeapi.com/*"
   ],
   "web_accessible_resources": [
     {
