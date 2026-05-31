@@ -23,13 +23,16 @@
   let CONFIG = { ...DEFAULTS };
 
   /* ---------- Renderer-Selektoren (Listen) -------------------------- */
+  // YouTube migriert 2024/25 von ytd-*-renderer zu yt-lockup-view-model
+  // (Startseite + Watch-Sidebar). Beide Formate werden unterstützt.
   const RENDERERS = [
-    "ytd-video-renderer",
-    "ytd-rich-item-renderer",
-    "ytd-grid-video-renderer",
-    "ytd-compact-video-renderer",
+    "ytd-video-renderer",                  // Suche (altes Format)
+    "ytd-rich-item-renderer",              // Startseite (Container)
+    "ytd-grid-video-renderer",             // Kanal-Grid
+    "ytd-compact-video-renderer",          // Sidebar (altes Format)
     "ytd-playlist-video-renderer",
     "ytd-playlist-panel-video-renderer",
+    "yt-lockup-view-model",                // NEU: Startseite + Sidebar
   ].join(", ");
 
   /* ---------- Helfer ------------------------------------------------ */
@@ -166,6 +169,7 @@
   /* ---------- Metadata-Line finden (robust) ------------------------- */
 
   function findMetadataLine(el) {
+    // Altes Format (ytd-*-renderer)
     const byId =
       el.querySelector("#metadata-line") ||
       el.querySelector(".metadata-line") ||
@@ -174,6 +178,12 @@
       el.querySelector("#metadata") ||
       el.querySelector("#details #meta");
     if (byId) return byId;
+
+    // Neues Format (yt-lockup-view-model): letzte Metadaten-Zeile
+    // (Aufrufe + Zeitangabe; die erste Zeile ist meist der Kanalname)
+    const rows = el.querySelectorAll(".yt-content-metadata-view-model-wiz__metadata-row");
+    if (rows.length) return rows[rows.length - 1];
+
     const span = el.querySelector("span.inline-metadata-item, .inline-metadata-item");
     return span ? span.parentElement : null;
   }
@@ -237,6 +247,9 @@
     const line = findMetadataLine(el);
     if (!line) return;
 
+    // Duplikat-Schutz: wurde diese Zeile schon (z.B. via äußerem Container) annotiert?
+    if (line.querySelector(".xdate-badge")) { el.dataset.xdate = "1"; return; }
+
     el.dataset.xdate = "1";
 
     const badge = document.createElement("span");
@@ -256,7 +269,9 @@
       badge.textContent = f;
       badge.title = "Exaktes Hochladedatum";
       if (CONFIG.mode === "replace") {
-        const items = [...line.querySelectorAll(".inline-metadata-item")]
+        // Letztes natives Zeit-Element ausblenden (beide Formate)
+        const sel = ".inline-metadata-item, .yt-content-metadata-view-model-wiz__metadata-text";
+        const items = [...line.querySelectorAll(sel)]
           .filter(i => !i.classList.contains("xdate-badge"));
         if (items.length) items[items.length - 1].style.display = "none";
       }

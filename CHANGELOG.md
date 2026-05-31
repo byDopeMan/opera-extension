@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.4] – 2026-05-31
+
+- Fix: Startseite und Watch-Sidebar werden jetzt unterstuetzt (YouTubes neues yt-lockup-view-model Format)
+- Fix: replace-Modus blendet Zeitangabe auch im neuen Format aus
+- Fix: Duplikat-Schutz verhindert doppelte Badges bei verschachtelten Containern
+
 ## [1.2.3] – 2026-05-31
 
 - Entfernt: Exakte-Aufrufe-Badge und separates Dislike-Badge aus Listen
