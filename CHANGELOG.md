@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] – 2026-05-31
+
+- Aenderung: Design-Import/Export nutzt jetzt echtes CSS statt JSON (einfach CSS einfuegen)
+- Fix: Update-Check im Popup las versehentlich XML-Header statt updatecheck-Version
+- Fix: bump-version.js update.xml Regex praezisiert
+
 ## [1.2.0] – 2026-05-31
 
 - Neu: Return YouTube Dislike Integration (Dislike-Anzahl via RYD-API)

@@ -245,54 +245,117 @@ document.getElementById("save-btn").addEventListener("click", () => {
   }
 });
 
+// ── Design-Werte auf alle Controls anwenden (zentral) ───────────────
+function applyDesignToControls(d) {
+  const set = (id, val, label, suffix = "") => {
+    const el = document.getElementById(id);
+    if (el == null || val == null) return;
+    el.value = val;
+    if (label) {
+      const lbl = document.getElementById(label);
+      if (lbl) lbl.textContent = val + suffix;
+    }
+  };
+  set("c-color",        d.color);
+  set("c-bg-alpha",     d.bgAlpha,     "c-bg-alpha-val",     "%");
+  set("c-border-alpha", d.borderAlpha, "c-border-alpha-val", "%");
+  set("c-fontsize",     d.fontSize,    "c-fontsize-val");
+  set("c-fontweight",   d.fontWeight);
+  set("c-lineheight",   d.lineHeight,  "c-lineheight-val");
+  set("c-px",           d.px,          "c-px-val",     "px");
+  set("c-py",           d.py,          "c-py-val",     "px");
+  set("c-radius",       d.radius,      "c-radius-val", "px");
+  set("c-ml",           d.ml,          "c-ml-val",     "px");
+  set("c-gap",          d.gap,         "c-gap-val",    "px");
+  set("c-bw",           d.bw,          "c-bw-val",     "px");
+  if (d.emoji != null) set("c-emoji", d.emoji);
+  buildCards();
+  updateCSSOutput(getSettings());
+}
+
 function loadSavedDesign() {
   if (typeof chrome === "undefined" || !chrome.storage) { return; }
   chrome.storage.sync.get({ badgeDesign: DEFAULTS_DESIGN, format: "DD.MM.YYYY", mode: "append", showTime: false }, (cfg) => {
     if (chrome.runtime.lastError) { return; }
-    const d = cfg.badgeDesign || DEFAULTS_DESIGN;
-    document.getElementById("c-color").value              = d.color;
-    document.getElementById("c-bg-alpha").value           = d.bgAlpha;
-    document.getElementById("c-bg-alpha-val").textContent = d.bgAlpha + "%";
-    document.getElementById("c-border-alpha").value       = d.borderAlpha;
-    document.getElementById("c-border-alpha-val").textContent = d.borderAlpha + "%";
-    document.getElementById("c-fontsize").value           = d.fontSize;
-    document.getElementById("c-fontsize-val").textContent = d.fontSize;
-    document.getElementById("c-fontweight").value         = d.fontWeight;
-    document.getElementById("c-lineheight").value         = d.lineHeight;
-    document.getElementById("c-lineheight-val").textContent = d.lineHeight;
-    document.getElementById("c-px").value                 = d.px;
-    document.getElementById("c-px-val").textContent       = d.px + "px";
-    document.getElementById("c-py").value                 = d.py;
-    document.getElementById("c-py-val").textContent       = d.py + "px";
-    document.getElementById("c-radius").value             = d.radius;
-    document.getElementById("c-radius-val").textContent   = d.radius + "px";
-    document.getElementById("c-ml").value                 = d.ml;
-    document.getElementById("c-ml-val").textContent       = d.ml + "px";
-    document.getElementById("c-gap").value                = d.gap;
-    document.getElementById("c-gap-val").textContent      = d.gap + "px";
-    document.getElementById("c-bw").value                 = d.bw;
-    document.getElementById("c-bw-val").textContent       = d.bw + "px";
-    document.getElementById("c-emoji").value              = d.emoji;
-    document.getElementById("c-format").value             = cfg.format;
-    document.getElementById("c-time").checked             = cfg.showTime;
-    document.getElementById("c-mode").value               = cfg.mode;
+    applyDesignToControls(cfg.badgeDesign || DEFAULTS_DESIGN);
+    document.getElementById("c-format").value = cfg.format;
+    document.getElementById("c-time").checked = cfg.showTime;
+    document.getElementById("c-mode").value   = cfg.mode;
     buildCards();
     updateCSSOutput(getSettings());
   });
 }
 
-// ── Design exportieren ──────────────────────────────────────────────
-document.getElementById("export-btn").addEventListener("click", () => {
-  const s    = getSettings();
-  const code = JSON.stringify({
-    color: s.color, bgAlpha: s.bgAlpha, borderAlpha: s.borderAlpha,
-    fontSize: s.fontSize, fontWeight: s.fontWeight, lineHeight: s.lineHeight,
-    px: s.px, py: s.py, radius: s.radius, ml: s.ml, gap: s.gap, bw: s.bw,
-    emoji: s.emoji,
+// ── CSS-Code parsen (für Import von Freunden) ───────────────────────
+function rgbaAlpha(str) {
+  const m = str.match(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*([\d.]+)\s*)?\)/i);
+  if (!m) return null;
+  return m[1] !== undefined ? parseFloat(m[1]) : 1;
+}
+
+function normalizeHex(c) {
+  c = c.trim();
+  if (c.startsWith("#")) {
+    if (c.length === 4) return "#" + c[1]+c[1] + c[2]+c[2] + c[3]+c[3];
+    return c.slice(0, 7);
+  }
+  const m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (m) {
+    const h = n => parseInt(n).toString(16).padStart(2, "0");
+    return "#" + h(m[1]) + h(m[2]) + h(m[3]);
+  }
+  return null;
+}
+
+function parseCSS(css) {
+  const block = css.includes("{") ? css.slice(css.indexOf("{") + 1, css.lastIndexOf("}")) : css;
+  const props = {};
+  block.split(";").forEach(decl => {
+    const i = decl.indexOf(":");
+    if (i === -1) return;
+    const k = decl.slice(0, i).trim().toLowerCase();
+    const v = decl.slice(i + 1).trim();
+    if (k) props[k] = v;
   });
-  const ta = document.getElementById("share-code");
-  ta.value = code;
-  navigator.clipboard.writeText(code).then(() => {
+
+  const d = { ...DEFAULTS_DESIGN };
+  let found = 0;
+  const num = (key, target, fb) => {
+    if (props[key] != null) { const n = parseFloat(props[key]); if (!isNaN(n)) { d[target] = n; found++; } }
+  };
+
+  if (props.color)         { const h = normalizeHex(props.color); if (h) { d.color = h; found++; } }
+  num("gap",          "gap");
+  num("margin-left",  "ml");
+  num("border-radius","radius");
+  num("font-size",    "fontSize");
+  num("line-height",  "lineHeight");
+  if (props["font-weight"]) { const w = parseInt(props["font-weight"]); if (!isNaN(w)) { d.fontWeight = String(w); found++; } }
+
+  if (props.padding != null) {
+    const p = props.padding.split(/\s+/).map(parseFloat).filter(n => !isNaN(n));
+    if (p.length === 1)      { d.py = p[0]; d.px = p[0]; found++; }
+    else if (p.length >= 2)  { d.py = p[0]; d.px = p[1]; found++; }
+  }
+  if (props.background != null) {
+    const a = rgbaAlpha(props.background);
+    if (a !== null) { d.bgAlpha = Math.round(a * 100); found++; }
+  }
+  if (props.border != null) {
+    const bw = parseFloat(props.border);
+    if (!isNaN(bw)) { d.bw = bw; found++; }
+    const a = rgbaAlpha(props.border);
+    if (a !== null) { d.borderAlpha = Math.round(a * 100); found++; }
+  }
+
+  return found >= 2 ? d : null;  // mind. 2 erkannte Properties = gültiges CSS
+}
+
+// ── Exportieren: aktuelles CSS in Textarea + Zwischenablage ─────────
+document.getElementById("export-btn").addEventListener("click", () => {
+  const css = document.getElementById("css-output").textContent;
+  document.getElementById("share-code").value = css;
+  navigator.clipboard.writeText(css).then(() => {
     const btn = document.getElementById("export-btn");
     btn.textContent = "✓ Kopiert!";
     btn.classList.add("copied");
@@ -300,62 +363,34 @@ document.getElementById("export-btn").addEventListener("click", () => {
   });
 });
 
-// ── Design importieren ──────────────────────────────────────────────
+// ── Importieren: CSS (oder altes JSON) aus Textarea übernehmen ──────
 document.getElementById("import-btn").addEventListener("click", () => {
   const raw = document.getElementById("share-code").value.trim();
   if (!raw) return;
-  try {
-    const d = JSON.parse(raw);
-    const required = ["color","bgAlpha","borderAlpha","fontSize","fontWeight",
-                      "lineHeight","px","py","radius","ml","gap","bw"];
-    if (!required.every(k => k in d)) throw new Error("Fehlende Felder");
 
-    document.getElementById("c-color").value              = d.color;
-    document.getElementById("c-bg-alpha").value           = d.bgAlpha;
-    document.getElementById("c-bg-alpha-val").textContent = d.bgAlpha + "%";
-    document.getElementById("c-border-alpha").value       = d.borderAlpha;
-    document.getElementById("c-border-alpha-val").textContent = d.borderAlpha + "%";
-    document.getElementById("c-fontsize").value           = d.fontSize;
-    document.getElementById("c-fontsize-val").textContent = d.fontSize;
-    document.getElementById("c-fontweight").value         = d.fontWeight;
-    document.getElementById("c-lineheight").value         = d.lineHeight;
-    document.getElementById("c-lineheight-val").textContent = d.lineHeight;
-    document.getElementById("c-px").value                 = d.px;
-    document.getElementById("c-px-val").textContent       = d.px + "px";
-    document.getElementById("c-py").value                 = d.py;
-    document.getElementById("c-py-val").textContent       = d.py + "px";
-    document.getElementById("c-radius").value             = d.radius;
-    document.getElementById("c-radius-val").textContent   = d.radius + "px";
-    document.getElementById("c-ml").value                 = d.ml;
-    document.getElementById("c-ml-val").textContent       = d.ml + "px";
-    document.getElementById("c-gap").value                = d.gap;
-    document.getElementById("c-gap-val").textContent      = d.gap + "px";
-    document.getElementById("c-bw").value                 = d.bw;
-    document.getElementById("c-bw-val").textContent       = d.bw + "px";
-    if ("emoji" in d) document.getElementById("c-emoji").value = d.emoji;
+  let design = null;
+  // 1) Versuch: CSS parsen
+  if (raw.includes("{") || raw.includes(":")) design = parseCSS(raw);
+  // 2) Fallback: altes JSON-Format
+  if (!design) {
+    try {
+      const j = JSON.parse(raw);
+      if (j && "color" in j && "fontSize" in j) design = { ...DEFAULTS_DESIGN, ...j };
+    } catch (_) {}
+  }
 
-    buildCards();
-    updateCSSOutput(getSettings());
-
-    const btn = document.getElementById("import-btn");
+  const btn = document.getElementById("import-btn");
+  if (design) {
+    applyDesignToControls(design);
     btn.textContent = "✓ Importiert!";
     btn.style.background = "#2e7d32";
     btn.style.color = "#fff";
-    setTimeout(() => {
-      btn.textContent = "Importieren";
-      btn.style.background = "";
-      btn.style.color = "";
-    }, 1800);
-  } catch (_) {
-    const btn = document.getElementById("import-btn");
-    btn.textContent = "✗ Ungültiger Code";
+    setTimeout(() => { btn.textContent = "Importieren"; btn.style.background = ""; btn.style.color = ""; }, 1800);
+  } else {
+    btn.textContent = "✗ Ungültiges CSS";
     btn.style.background = "#7d2e2e";
     btn.style.color = "#fff";
-    setTimeout(() => {
-      btn.textContent = "Importieren";
-      btn.style.background = "";
-      btn.style.color = "";
-    }, 2000);
+    setTimeout(() => { btn.textContent = "Importieren"; btn.style.background = ""; btn.style.color = ""; }, 2000);
   }
 });
 

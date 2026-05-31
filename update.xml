@@ -3,7 +3,7 @@
   <app appid='hjcjfpamagcpfajoaojnihkloekekgio'>
     <updatecheck
       status='ok'
-      version='1.2.0'
+      version='1.2.1'
       codebase='https://bydopeman.github.io/opera-extension/yt-exact-date.crx'
     />
   </app>

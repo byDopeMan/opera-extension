@@ -84,7 +84,8 @@ async function checkForUpdate(currentVersion) {
     );
     if (!res.ok) return;
     const xml         = await res.text();
-    const verMatch    = xml.match(/version='([^']+)'/);
+    // Gezielt die <updatecheck version='...'> lesen — NICHT den <?xml version='1.0'?> Header
+    const verMatch    = xml.match(/<updatecheck[^>]*?\bversion='([^']+)'/s);
     const crxMatch    = xml.match(/codebase='([^']+)'/);
     if (!verMatch) return;
 
